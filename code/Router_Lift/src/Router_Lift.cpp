@@ -3,86 +3,145 @@
  * @author jfdzar
  * @date 02.2022
  * @details To be completed
-*********************************************************************/
+ *********************************************************************/
 #include <Arduino.h>
 #include "display.h"
+#include "motor.h"
 #include <AccelStepper.h>
+#include <AiEsp32RotaryEncoder.h>
+
+void serialEvent();
+void IRAM_ATTR readEncoderISR();
 
 // Stepper
-uint8_t stepPin = 12;
-uint8_t dirPin = 13;
-uint8_t motorInterfaceType = 1;
-AccelStepper stepper = AccelStepper(motorInterfaceType, stepPin, dirPin);
+#define STEPPIN 12
+#define DIRPIN 13
+#define MS1PIN 33
+#define MS2PIN 25
+#define MS3PIN 26
+#define MOTORINTERFACETYPE 1
+
+#define MICROSTEP 1
+#define MOTORSTEPREV 200
+#define SPINDLEMMREV 4
+#define MOTPOSPOSFACTOR (MOTORSTEPREV * MICROSTEP / SPINDLEMMREV)
+
+#define INITMAXSPEED 4000 // in step/s
+#define MAXACCEL 45000    // in step/s^2
+#define MINPULSEWIDTH 20  // in uS
+
+AccelStepper stepper = AccelStepper(MOTORINTERFACETYPE, STEPPIN, DIRPIN);
+
+int64_t mot_position = 0;
+float position = 0;
+int64_t speed = 2000;
+unsigned long lastTimePressed = 0;
 
 // Display
 Adafruit_SH1106G display = Adafruit_SH1106G(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 
-//Serial
+// Encoder
+uint8_t encAPin = 32;
+uint8_t encBPin = 35;
+uint8_t encButton = 34;
+volatile uint8_t encPosition = 0;
+
+#define ROTARY_ENCODER_STEPS 1
+AiEsp32RotaryEncoder rotaryEncoder = AiEsp32RotaryEncoder(encAPin, encBPin, encButton, -1, ROTARY_ENCODER_STEPS);
+
+// Serial
+#define BAUDRATE 9600
 String inputString = "";     // a String to hold incoming data
 bool stringComplete = false; // whether the string is complete
 
 void setup()
 {
-  Serial.begin(9600);
+  // Serial
+  Serial.begin(BAUDRATE);
   inputString.reserve(200);
 
-  stepper.setMaxSpeed(1000);
-  stepper.setAcceleration(10000);
-  stepper.setMinPulseWidth(20);
+  // Motor
+  stepper.setMaxSpeed(INITMAXSPEED);
+  stepper.setAcceleration(MAXACCEL);
+  stepper.setMinPulseWidth(MINPULSEWIDTH);
+  pinMode(MS1PIN, OUTPUT);
+  pinMode(MS2PIN, OUTPUT);
+  pinMode(MS3PIN, OUTPUT);
+  setMicrostep(1, MS1PIN, MS2PIN, MS3PIN);
 
-  // Show image buffer on the display hardware.
-  // Since the buffer is intialized with an Adafruit splashscreen
-  // internally, this will display the splashscreen.
+  // Display
+  //  Show image buffer on the display hardware.
+  //  Since the buffer is intialized with an Adafruit splashscreen
+  //  internally, this will display the splashscreen.
   display.begin(i2c_Address, true); // Address 0x3C default
   display.setContrast(0);           // dim display
   display.display();
-  delay(2000);
+  delay(500);
+
+  // Encoder
+  rotaryEncoder.begin();
+  rotaryEncoder.setup(readEncoderISR);
+  // rotaryEncoder.setBoundaries(88 * 10, 104 * 10, true); // minValue, maxValue, circleValues true|false (when max go to min and vice versa)
+  // rotaryEncoder.setAcceleration(50);
+  rotaryEncoder.setEncoderValue(0); // set default to 0
 
   // text display tests
   display.clearDisplay();
   display.setTextSize(2);
   display.setTextColor(SH110X_WHITE);
   display.setCursor(32, 0);
-  display.println("Hola");
-  //display.setTextColor(SH110X_BLACK, SH110X_WHITE); // 'inverted' text
-  display.println(0.0);
+  display.println("Automatic");
+  display.println("Router Lift");
+  // display.setTextColor(SH110X_BLACK, SH110X_WHITE); // 'inverted' text
   display.display();
-  delay(2000);
+  delay(1000);
   display.clearDisplay();
+  Serial.println("Starting Loop");
 }
 
 void loop()
 {
+  position = float(rotaryEncoder.readEncoder())/100;
+  mot_position = round(position * MOTPOSPOSFACTOR);
 
-  float number = 0;
-  Serial.println("Starting Loop");
-
-  display.println(number);
+  display.clearDisplay();
+  display.setTextSize(2);
+  display.setCursor(32, 32);
+  display.println(position);
   display.display();
 
-  //for (int i = 0; i < 100; i++) {
-  while (1)
+  if (rotaryEncoder.encoderChanged())
   {
+    Serial.println("Encoder Changed");
+    Serial.println(rotaryEncoder.readEncoder());
+  }
+  if (rotaryEncoder.isEncoderButtonClicked())
+  {
+    int timePressed = 0;
+    Serial.println(timePressed);
 
-    Serial.println("Printing Number...");
-    display.clearDisplay();
-    display.setTextSize(3);
-    number = number + 1.1;
-    display.setCursor(32, 32);
-    display.println(number);
-    display.display();
-
-    // Set the speed in steps per second:
-    stepper.setSpeed(400);
-
-    int position = stepper.currentPosition();
-    // Step the motor with a constant speed as set by setSpeed():
-    stepper.moveTo(position + 400);
-    while (stepper.isRunning())
+    if (timePressed > 500)
     {
-      stepper.run();
+      position = 0;
+      rotaryEncoder.setEncoderValue(position);
     }
-    delay(1000);
+    else
+    {
+      Serial.println("Button Clicked");
+      display.clearDisplay();
+      display.setCursor(32, 32);
+      display.println("Move!");
+      display.display();
+
+      stepper.setMaxSpeed(speed);
+      stepper.moveTo(mot_position);
+
+      while (stepper.currentPosition() != mot_position)
+      {
+        stepper.run();
+      }
+      delay(1);
+    }
   }
 }
 
@@ -98,7 +157,14 @@ void serialEvent()
     // do something about it:
     if (inChar == '\n')
     {
-      stringComplete = true;
+      Serial.println(inputString);
+      speed = inputString.toFloat();
+      inputString = "";
     }
   }
+}
+
+void IRAM_ATTR readEncoderISR()
+{
+  rotaryEncoder.readEncoder_ISR();
 }
