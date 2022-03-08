@@ -9,9 +9,14 @@
 #include "motor.h"
 #include <AccelStepper.h>
 #include <AiEsp32RotaryEncoder.h>
+#include <DabbleESP32.h>
 
 void serialEvent();
 void IRAM_ATTR readEncoderISR();
+
+// Bluetooth
+#define CUSTOM_SETTINGS
+#define INCLUDE_DABBLEINPUTS_MODULE
 
 // Stepper
 #define STEPPIN 12
@@ -60,6 +65,9 @@ void setup()
   Serial.begin(BAUDRATE);
   inputString.reserve(200);
 
+  // Bluetooth
+  Dabble.begin("RouterLift");
+
   // Motor
   stepper.setMaxSpeed(INITMAXSPEED);
   stepper.setAcceleration(MAXACCEL);
@@ -87,9 +95,9 @@ void setup()
 
   // text display tests
   display.clearDisplay();
-  display.setTextSize(2);
+  display.setTextSize(1);
   display.setTextColor(SH110X_WHITE);
-  display.setCursor(32, 0);
+  display.setCursor(0, 10);
   display.println("Automatic");
   display.println("Router Lift");
   // display.setTextColor(SH110X_BLACK, SH110X_WHITE); // 'inverted' text
@@ -101,8 +109,18 @@ void setup()
 
 void loop()
 {
-  position = float(rotaryEncoder.readEncoder())/100;
-  mot_position = round(position * MOTPOSPOSFACTOR);
+  /*
+  Dabble.processInput();
+  position = Inputs.getPot1Value();
+  rotaryEncoder.setEncoderValue(position);
+  mot_position = position;
+  */
+
+  stepper.moveTo(mot_position);
+  while (stepper.currentPosition() != mot_position)
+  {
+    stepper.run();
+  }
 
   display.clearDisplay();
   display.setTextSize(2);
@@ -114,34 +132,14 @@ void loop()
   {
     Serial.println("Encoder Changed");
     Serial.println(rotaryEncoder.readEncoder());
+    position = float(rotaryEncoder.readEncoder()) / 100;
+    mot_position = round(position * MOTPOSPOSFACTOR);
   }
   if (rotaryEncoder.isEncoderButtonClicked())
   {
-    int timePressed = 0;
-    Serial.println(timePressed);
-
-    if (timePressed > 500)
-    {
-      position = 0;
-      rotaryEncoder.setEncoderValue(position);
-    }
-    else
-    {
-      Serial.println("Button Clicked");
-      display.clearDisplay();
-      display.setCursor(32, 32);
-      display.println("Move!");
-      display.display();
-
-      stepper.setMaxSpeed(speed);
-      stepper.moveTo(mot_position);
-
-      while (stepper.currentPosition() != mot_position)
-      {
-        stepper.run();
-      }
-      delay(1);
-    }
+    Serial.println("Button Clicked");
+    position = 0;
+    rotaryEncoder.setEncoderValue(position);
   }
 }
 
