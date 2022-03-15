@@ -9,14 +9,15 @@
 #include "motor.h"
 #include <AccelStepper.h>
 #include <AiEsp32RotaryEncoder.h>
-#include <DabbleESP32.h>
+#include <OneButton.h>
 
 void serialEvent();
 void IRAM_ATTR readEncoderISR();
 
-// Bluetooth
-#define CUSTOM_SETTINGS
-#define INCLUDE_DABBLEINPUTS_MODULE
+void startRouter();
+void lockControls();
+void moveStepper();
+void saveZeroPosition();
 
 // Stepper
 #define STEPPIN 12
@@ -35,27 +36,40 @@ void IRAM_ATTR readEncoderISR();
 #define MAXACCEL 45000    // in step/s^2
 #define MINPULSEWIDTH 20  // in uS
 
-AccelStepper stepper = AccelStepper(MOTORINTERFACETYPE, STEPPIN, DIRPIN);
+// Encoder
+#define ROTARY_ENCODER_STEPS 1
+#define ENCAPIN 32
+#define ENCBPIN 35
+#define ENCBUTTON 34
+#define ENCINITPOS 0
 
+// Buttons and LEDs
+#define BUTTONAPIN 27
+#define LEDGREEN 4
+#define LEDRED 23
+
+// Serial
+#define BAUDRATE 9600
+
+// Motor
+AccelStepper stepper = AccelStepper(MOTORINTERFACETYPE, STEPPIN, DIRPIN);
 int64_t mot_position = 0;
 float position = 0;
 int64_t speed = 2000;
-unsigned long lastTimePressed = 0;
 
 // Display
 Adafruit_SH1106G display = Adafruit_SH1106G(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 
 // Encoder
-uint8_t encAPin = 32;
-uint8_t encBPin = 35;
-uint8_t encButton = 34;
-volatile uint8_t encPosition = 0;
+AiEsp32RotaryEncoder rotaryEncoder = AiEsp32RotaryEncoder(ENCAPIN, ENCBPIN, ENCBUTTON, -1, ROTARY_ENCODER_STEPS);
 
-#define ROTARY_ENCODER_STEPS 1
-AiEsp32RotaryEncoder rotaryEncoder = AiEsp32RotaryEncoder(encAPin, encBPin, encButton, -1, ROTARY_ENCODER_STEPS);
+// Inputs & Outputs
+OneButton button_a(BUTTONAPIN, true, true);
+OneButton button_enc(ENCBUTTON, false, false);
+
+bool lockedControls = false;
 
 // Serial
-#define BAUDRATE 9600
 String inputString = "";     // a String to hold incoming data
 bool stringComplete = false; // whether the string is complete
 
@@ -64,9 +78,6 @@ void setup()
   // Serial
   Serial.begin(BAUDRATE);
   inputString.reserve(200);
-
-  // Bluetooth
-  Dabble.begin("RouterLift");
 
   // Motor
   stepper.setMaxSpeed(INITMAXSPEED);
@@ -84,14 +95,25 @@ void setup()
   display.begin(i2c_Address, true); // Address 0x3C default
   display.setContrast(0);           // dim display
   display.display();
-  delay(500);
+  delay(250);
 
   // Encoder
   rotaryEncoder.begin();
   rotaryEncoder.setup(readEncoderISR);
-  // rotaryEncoder.setBoundaries(88 * 10, 104 * 10, true); // minValue, maxValue, circleValues true|false (when max go to min and vice versa)
+  rotaryEncoder.setBoundaries(0, 10 * 100, false); // minValue, maxValue, circleValues true|false (when max go to min and vice versa)
   // rotaryEncoder.setAcceleration(50);
-  rotaryEncoder.setEncoderValue(0); // set default to 0
+  rotaryEncoder.setEncoderValue(ENCINITPOS); // set default to 0
+
+  // Inputs & Outputs
+  pinMode(BUILTIN_LED, OUTPUT);
+  pinMode(LEDGREEN, OUTPUT);
+  pinMode(LEDRED, OUTPUT);
+
+  button_a.attachClick(startRouter);          // link the function to be called on a singleclick event.
+  button_a.attachLongPressStop(lockControls); // link the function to be called on a longpress event.
+
+  button_enc.attachClick(moveStepper);
+  button_enc.attachDuringLongPress(saveZeroPosition);
 
   // text display tests
   display.clearDisplay();
@@ -109,23 +131,32 @@ void setup()
 
 void loop()
 {
-  /*
-  Dabble.processInput();
-  position = Inputs.getPot1Value();
-  rotaryEncoder.setEncoderValue(position);
-  mot_position = position;
-  */
+
+  button_a.tick();
+  if (!lockedControls)
+  {
+    button_enc.tick();
+  }
 
   stepper.moveTo(mot_position);
-  while (stepper.currentPosition() != mot_position)
-  {
-    stepper.run();
-  }
+  stepper.run();
 
   display.clearDisplay();
   display.setTextSize(2);
   display.setCursor(32, 32);
   display.println(position);
+  if (stepper.currentPosition() != mot_position)
+  {
+    display.setTextSize(1);
+    display.setCursor(0, 0);
+    display.println("*");
+  }
+  if (lockedControls)
+  {
+    display.setTextSize(1);
+    display.setCursor(60, 0);
+    display.println("Locked");
+  }
   display.display();
 
   if (rotaryEncoder.encoderChanged())
@@ -133,13 +164,6 @@ void loop()
     Serial.println("Encoder Changed");
     Serial.println(rotaryEncoder.readEncoder());
     position = float(rotaryEncoder.readEncoder()) / 100;
-    mot_position = round(position * MOTPOSPOSFACTOR);
-  }
-  if (rotaryEncoder.isEncoderButtonClicked())
-  {
-    Serial.println("Button Clicked");
-    position = 0;
-    rotaryEncoder.setEncoderValue(position);
   }
 }
 
@@ -160,6 +184,37 @@ void serialEvent()
       inputString = "";
     }
   }
+}
+
+void startRouter()
+{
+  digitalWrite(LEDGREEN, !digitalRead(LEDGREEN));
+}
+
+void lockControls()
+{
+  digitalWrite(LEDRED, !digitalRead(LEDRED));
+  lockedControls = !lockedControls;
+
+  if (lockedControls)
+  {
+    rotaryEncoder.disable();
+  }
+  else
+  {
+    rotaryEncoder.enable();
+  }
+}
+
+void moveStepper()
+{
+  mot_position = round(position * MOTPOSPOSFACTOR);
+}
+
+void saveZeroPosition()
+{
+  position = 0;
+  rotaryEncoder.setEncoderValue(position);
 }
 
 void IRAM_ATTR readEncoderISR()
