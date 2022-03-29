@@ -27,14 +27,14 @@ void saveZeroPosition();
 #define MS3PIN 26
 #define MOTORINTERFACETYPE 1
 
-#define MICROSTEP 1
+#define MICROSTEP 4
 #define MOTORSTEPREV 200
-#define SPINDLEMMREV 4
+#define SPINDLEMMREV 3
 #define MOTPOSPOSFACTOR (MOTORSTEPREV * MICROSTEP / SPINDLEMMREV)
 
-#define INITMAXSPEED 4000 // in step/s
-#define MAXACCEL 45000    // in step/s^2
-#define MINPULSEWIDTH 20  // in uS
+#define INITSPEED 3200   // in step/s
+#define MAXACCEL 45000   // in step/s^2
+#define MINPULSEWIDTH 20 // in uS
 
 // Encoder
 #define ROTARY_ENCODER_STEPS 1
@@ -55,7 +55,8 @@ void saveZeroPosition();
 AccelStepper stepper = AccelStepper(MOTORINTERFACETYPE, STEPPIN, DIRPIN);
 int64_t mot_position = 0;
 float position = 0;
-int64_t speed = 2000;
+long speed = 6000;
+long acceleration = 45000;
 
 // Display
 Adafruit_SH1106G display = Adafruit_SH1106G(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
@@ -73,6 +74,8 @@ bool lockedControls = false;
 String inputString = "";     // a String to hold incoming data
 bool stringComplete = false; // whether the string is complete
 
+unsigned long lastTime = 0;
+
 void setup()
 {
   // Serial
@@ -80,13 +83,14 @@ void setup()
   inputString.reserve(200);
 
   // Motor
-  stepper.setMaxSpeed(INITMAXSPEED);
+  stepper.setMaxSpeed(INITSPEED);
+  stepper.setSpeed(INITSPEED);
   stepper.setAcceleration(MAXACCEL);
   stepper.setMinPulseWidth(MINPULSEWIDTH);
   pinMode(MS1PIN, OUTPUT);
   pinMode(MS2PIN, OUTPUT);
   pinMode(MS3PIN, OUTPUT);
-  setMicrostep(1, MS1PIN, MS2PIN, MS3PIN);
+  setMicrostep(MICROSTEP, MS1PIN, MS2PIN, MS3PIN);
 
   // Display
   //  Show image buffer on the display hardware.
@@ -100,7 +104,7 @@ void setup()
   // Encoder
   rotaryEncoder.begin();
   rotaryEncoder.setup(readEncoderISR);
-  rotaryEncoder.setBoundaries(0, 10 * 100, false); // minValue, maxValue, circleValues true|false (when max go to min and vice versa)
+  rotaryEncoder.setBoundaries(0, 100 * 100, false); // minValue, maxValue, circleValues true|false (when max go to min and vice versa)
   // rotaryEncoder.setAcceleration(50);
   rotaryEncoder.setEncoderValue(ENCINITPOS); // set default to 0
 
@@ -132,24 +136,23 @@ void setup()
 void loop()
 {
 
+  serialEvent();
+  stepper.moveTo(mot_position);
+  stepper.run();
   button_a.tick();
   if (!lockedControls)
   {
     button_enc.tick();
-  }
-
-  stepper.moveTo(mot_position);
-  stepper.run();
-
-  display.clearDisplay();
-  display.setTextSize(2);
-  display.setCursor(32, 32);
-  display.println(position);
-  if (stepper.currentPosition() != mot_position)
-  {
-    display.setTextSize(1);
-    display.setCursor(0, 0);
-    display.println("*");
+    display.clearDisplay();
+    display.setTextSize(2);
+    display.setCursor(32, 32);
+    display.println(position);
+    if (rotaryEncoder.encoderChanged())
+    {
+      stepper.run();
+      position = float(rotaryEncoder.readEncoder()) / 100;
+      stepper.run();
+    }
   }
   if (lockedControls)
   {
@@ -157,13 +160,10 @@ void loop()
     display.setCursor(60, 0);
     display.println("Locked");
   }
-  display.display();
 
-  if (rotaryEncoder.encoderChanged())
+  if (stepper.currentPosition() == mot_position)
   {
-    Serial.println("Encoder Changed");
-    Serial.println(rotaryEncoder.readEncoder());
-    position = float(rotaryEncoder.readEncoder()) / 100;
+    display.display();
   }
 }
 
@@ -179,8 +179,23 @@ void serialEvent()
     // do something about it:
     if (inChar == '\n')
     {
-      Serial.println(inputString);
-      speed = inputString.toFloat();
+
+      if (!lockedControls)
+      {
+        speed = inputString.toInt();
+        Serial.print("Speed: ");
+        Serial.println(inputString);
+        stepper.setSpeed(speed);
+        stepper.setMaxSpeed(speed);
+      }
+      else
+      {
+        acceleration = inputString.toInt();
+        Serial.print("Acceleration: ");
+        Serial.println(inputString);
+        stepper.setAcceleration(acceleration);
+      }
+
       inputString = "";
     }
   }
@@ -209,6 +224,10 @@ void lockControls()
 void moveStepper()
 {
   mot_position = round(position * MOTPOSPOSFACTOR);
+  display.setTextSize(1);
+  display.setCursor(0, 0);
+  display.println("*");
+  display.display();
 }
 
 void saveZeroPosition()
