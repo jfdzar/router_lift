@@ -22,6 +22,7 @@ void saveZeroPosition();
 // Stepper
 #define STEPPIN 12
 #define DIRPIN 13
+#define ENABLEPIN 2 // Same as built in LEDPIN
 #define MS1PIN 33
 #define MS2PIN 25
 #define MS3PIN 26
@@ -32,7 +33,7 @@ void saveZeroPosition();
 #define SPINDLEMMREV 3
 #define MOTPOSPOSFACTOR (MOTORSTEPREV * MICROSTEP / SPINDLEMMREV)
 
-#define INITSPEED 3200   // in step/s
+#define INITSPEED 2000   // in step/s
 #define MAXACCEL 45000   // in step/s^2
 #define MINPULSEWIDTH 20 // in uS
 
@@ -90,6 +91,7 @@ void setup()
   pinMode(MS1PIN, OUTPUT);
   pinMode(MS2PIN, OUTPUT);
   pinMode(MS3PIN, OUTPUT);
+  pinMode(ENABLEPIN, OUTPUT);
   setMicrostep(MICROSTEP, MS1PIN, MS2PIN, MS3PIN);
 
   // Display
@@ -109,7 +111,6 @@ void setup()
   rotaryEncoder.setEncoderValue(ENCINITPOS); // set default to 0
 
   // Inputs & Outputs
-  pinMode(BUILTIN_LED, OUTPUT);
   pinMode(LEDGREEN, OUTPUT);
   pinMode(LEDRED, OUTPUT);
 
@@ -135,7 +136,6 @@ void setup()
 
 void loop()
 {
-
   serialEvent();
   stepper.moveTo(mot_position);
   stepper.run();
@@ -149,9 +149,7 @@ void loop()
     display.println(position);
     if (rotaryEncoder.encoderChanged())
     {
-      stepper.run();
       position = float(rotaryEncoder.readEncoder()) / 100;
-      stepper.run();
     }
   }
   if (lockedControls)
@@ -163,6 +161,7 @@ void loop()
 
   if (stepper.currentPosition() == mot_position)
   {
+    digitalWrite(ENABLEPIN, HIGH);
     display.display();
   }
 }
@@ -228,6 +227,7 @@ void moveStepper()
   display.setCursor(0, 0);
   display.println("*");
   display.display();
+  digitalWrite(ENABLEPIN, LOW);
 }
 
 void saveZeroPosition()
