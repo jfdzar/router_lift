@@ -12,13 +12,13 @@
 // Display
 RouterLiftDisplay rldisplay;
 
+// Motor
+RouterLiftMotor rlmotor;
+
 // Serial
 #define BAUDRATE 9600
 String inputString = "";     // a String to hold incoming data
 bool stringComplete = false; // whether the string is complete
-
-// Motor
-RouterLiftMotor rlmotor;
 
 void setup()
 {
@@ -29,10 +29,14 @@ void setup()
   // Motor
   rlmotor.init();
 
+  // Display
+  rldisplay.init();
+  rldisplay.poweron_screen();
+
   // Encoder
   rotaryEncoder.begin();
   rotaryEncoder.setup(readEncoderISR);
-  rotaryEncoder.setBoundaries(0, 100 * 100, false); // minValue, maxValue, circleValues true|false (when max go to min and vice versa)
+  rotaryEncoder.setBoundaries(ENCLOWLIMIT, ENCUPPLIMIT, false); // minValue, maxValue, circleValues true|false (when max go to min and vice versa)
   // rotaryEncoder.setAcceleration(50);
   rotaryEncoder.setEncoderValue(ENCINITPOS); // set default to 0
 
@@ -45,10 +49,6 @@ void setup()
 
   button_enc.attachClick(moveStepper);
   button_enc.attachDuringLongPress(saveZeroPosition);
-
-  // Display
-  rldisplay.init();
-  rldisplay.poweron_screen();
 
   Serial.println("Starting Loop");
 }
@@ -78,6 +78,12 @@ void loop()
   {
     rlmotor.disable_motor();
     rldisplay.redraw();
+
+    if (rlmotor.get_endstopevent())
+    {
+      rotaryEncoder.setEncoderValue(rlmotor.get_position() * 100);
+      rlmotor.reset_endstopevent();
+    }
   }
 }
 

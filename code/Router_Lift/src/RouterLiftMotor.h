@@ -1,4 +1,5 @@
 #include <AccelStepper.h>
+#include <OneButton.h>
 
 // Stepper
 #define STEPPIN 12
@@ -8,6 +9,9 @@
 #define MS2PIN 25
 #define MS3PIN 26
 #define MOTORINTERFACETYPE 1
+
+#define ENDSTOPUP 18
+#define ENDSTOPDOWN 19
 
 #define MICROSTEP 4
 #define MOTORSTEPREV 200
@@ -37,7 +41,46 @@ public:
         pinMode(MS2PIN, OUTPUT);
         pinMode(MS3PIN, OUTPUT);
         pinMode(ENABLEPIN, OUTPUT);
+        pinMode(ENDSTOPDOWN, PULLDOWN);
+        pinMode(ENDSTOPUP, PULLDOWN);
         setMicrostep(MICROSTEP);
+    }
+
+    void check_end_stops()
+    {
+        _endstopdown = digitalRead(ENDSTOPDOWN);
+        _endstopup = digitalRead(ENDSTOPUP);
+
+        if (_endstopdown)
+        {
+            if (_mot_position > _stepper.currentPosition())
+            {
+                _mot_position = _stepper.currentPosition();
+                _stepper.moveTo(_mot_position);
+                _position = _mot_position / MOTPOSPOSFACTOR;
+                _endstopevent = true;
+            }
+        }
+        if (_endstopup)
+        {
+            if (_mot_position < _stepper.currentPosition())
+            {
+                _mot_position = _stepper.currentPosition();
+                _stepper.moveTo(_mot_position);
+                _position = _mot_position / MOTPOSPOSFACTOR;
+                _endstopevent = true;
+            }
+        }
+    }
+
+    bool get_endstopevent()
+    {
+        return _endstopevent;
+    }
+
+    void reset_endstopevent()
+    {
+        _endstopevent = false;
     }
 
     void enable_motor()
@@ -79,6 +122,8 @@ public:
     void save_zero_position()
     {
         _position = 0;
+        _mot_position = 0;
+        _stepper.setCurrentPosition(0);
     }
 
     void set_speed(long speed)
@@ -97,6 +142,7 @@ public:
     void run()
     {
         _stepper.run();
+        check_end_stops();
     }
 
     bool is_moving()
@@ -111,6 +157,16 @@ public:
         }
     }
 
+    bool get_endstopdown()
+    {
+        return _endstopdown;
+    }
+
+    bool get_endstopup()
+    {
+        return _endstopup;
+    }
+
 private:
     // Motor
     AccelStepper _stepper = AccelStepper(MOTORINTERFACETYPE, STEPPIN, DIRPIN);
@@ -119,6 +175,10 @@ private:
     float _position = 0;
     long _speed = INITSPEED;
     long _acceleration = MAXACCEL;
+
+    bool _endstopdown = false;
+    bool _endstopup = false;
+    bool _endstopevent = false;
 
     void _setMicrostep(uint8_t microStep, uint8_t ms1Pin, uint8_t ms2Pin, uint8_t ms3Pin)
     {
