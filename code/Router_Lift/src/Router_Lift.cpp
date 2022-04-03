@@ -36,7 +36,7 @@ void setup()
   // Encoder
   rotaryEncoder.begin();
   rotaryEncoder.setup(readEncoderISR);
-  rotaryEncoder.setBoundaries(0, 100 * 100, false); // minValue, maxValue, circleValues true|false (when max go to min and vice versa)
+  rotaryEncoder.setBoundaries(ENCLOWLIMIT, ENCUPPLIMIT, false); // minValue, maxValue, circleValues true|false (when max go to min and vice versa)
   // rotaryEncoder.setAcceleration(50);
   rotaryEncoder.setEncoderValue(ENCINITPOS); // set default to 0
 
@@ -78,6 +78,12 @@ void loop()
   {
     rlmotor.disable_motor();
     rldisplay.redraw();
+
+    if (rlmotor.get_endstopevent())
+    {
+      rotaryEncoder.setEncoderValue(rlmotor.get_position() * 100);
+      rlmotor.reset_endstopevent();
+    }
   }
 }
 

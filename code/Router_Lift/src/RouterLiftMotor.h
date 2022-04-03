@@ -51,12 +51,36 @@ public:
         _endstopdown = digitalRead(ENDSTOPDOWN);
         _endstopup = digitalRead(ENDSTOPUP);
 
-        if (_endstopdown || _endstopup)
+        if (_endstopdown)
         {
-            _mot_position = _stepper.currentPosition();
-            _stepper.moveTo(_mot_position);
-            update_position(_mot_position / MOTPOSPOSFACTOR);
+            if (_mot_position > _stepper.currentPosition())
+            {
+                _mot_position = _stepper.currentPosition();
+                _stepper.moveTo(_mot_position);
+                _position = _mot_position / MOTPOSPOSFACTOR;
+                _endstopevent = true;
+            }
         }
+        if (_endstopup)
+        {
+            if (_mot_position < _stepper.currentPosition())
+            {
+                _mot_position = _stepper.currentPosition();
+                _stepper.moveTo(_mot_position);
+                _position = _mot_position / MOTPOSPOSFACTOR;
+                _endstopevent = true;
+            }
+        }
+    }
+
+    bool get_endstopevent()
+    {
+        return _endstopevent;
+    }
+
+    void reset_endstopevent()
+    {
+        _endstopevent = false;
     }
 
     void enable_motor()
@@ -98,6 +122,8 @@ public:
     void save_zero_position()
     {
         _position = 0;
+        _mot_position = 0;
+        _stepper.setCurrentPosition(0);
     }
 
     void set_speed(long speed)
@@ -152,6 +178,7 @@ private:
 
     bool _endstopdown = false;
     bool _endstopup = false;
+    bool _endstopevent = false;
 
     void _setMicrostep(uint8_t microStep, uint8_t ms1Pin, uint8_t ms2Pin, uint8_t ms3Pin)
     {

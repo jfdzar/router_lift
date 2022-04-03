@@ -8,6 +8,9 @@
 #define ENCBUTTON 34
 #define ENCINITPOS 0
 
+#define ENCLOWLIMIT -5000 // -10 * 100
+#define ENCUPPLIMIT 10000 // 100 * 100
+
 // Buttons and LEDs
 #define BUTTONAPIN 27
 #define LEDGREEN 4
