@@ -1,7 +1,7 @@
 # Router Lift Code
 
 The actual code is working on a ESP32-WROOM Devkit, with the following PinOut:
-[ESP32](https://github.com/jfdzar/router_lift/blob/71ae90a2270c71d60ac2871e5314fc9e2b65e267/doc/wroom-esp32-pinout.jpeg)
+![ESP32](https://github.com/jfdzar/router_lift/blob/71ae90a2270c71d60ac2871e5314fc9e2b65e267/doc/wroom-esp32-pinout.jpeg)
 
 the motor controller is a [Pololu A4988](https://www.pololu.com/product/1182).
 
