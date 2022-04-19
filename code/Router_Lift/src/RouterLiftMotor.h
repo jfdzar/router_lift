@@ -141,7 +141,8 @@ public:
 
     void run()
     {
-        _stepper.run();
+        //_stepper.run();
+        _stepper.runToPosition();
         check_end_stops();
     }
 

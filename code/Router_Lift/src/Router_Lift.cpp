@@ -37,7 +37,7 @@ void setup()
   rotaryEncoder.begin();
   rotaryEncoder.setup(readEncoderISR);
   rotaryEncoder.setBoundaries(ENCLOWLIMIT, ENCUPPLIMIT, false); // minValue, maxValue, circleValues true|false (when max go to min and vice versa)
-  // rotaryEncoder.setAcceleration(50);
+  rotaryEncoder.setAcceleration(500);
   rotaryEncoder.setEncoderValue(ENCINITPOS); // set default to 0
 
   // Inputs & Outputs
