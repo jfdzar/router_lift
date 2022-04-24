@@ -408,7 +408,7 @@
       "idf": "",
       "netlist": "",
       "specctra_dsn": "",
-      "step": "",
+      "step": "Router_Lift_Prototype1.step",
       "vrml": ""
     },
     "page_layout_descr_file": ""
