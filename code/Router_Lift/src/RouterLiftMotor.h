@@ -1,17 +1,23 @@
 #include <AccelStepper.h>
 #include <OneButton.h>
+#include <SPI.h>
+#include <HighPowerStepperDriver.h>
 
 // Stepper
-#define STEPPIN 12
-#define DIRPIN 13
-#define ENABLEPIN 2 // Same as built in LEDPIN
-#define MS1PIN 33
-#define MS2PIN 25
-#define MS3PIN 26
+#define STEPPIN 16
+#define DIRPIN 17
+#define ENABLEPIN 26
+#define MS1PIN 25
+#define MS2PIN 33
+#define MS3PIN 32
+#define SCK 18
+#define MISO 19
+#define MOSI 23
+#define CSPIN 5
 #define MOTORINTERFACETYPE 1
 
-#define ENDSTOPUP 18
-#define ENDSTOPDOWN 19
+#define ENDSTOPUP 35
+#define ENDSTOPDOWN 34
 
 #define MICROSTEP 4
 #define MOTORSTEPREV 200
@@ -21,6 +27,8 @@
 #define INITSPEED 2000   // in step/s
 #define MAXACCEL 45000   // in step/s^2
 #define MINPULSEWIDTH 20 // in uS
+
+#define CURRENTLIMIT 1000 // Current limit in mA
 
 class RouterLiftMotor
 {
@@ -32,6 +40,26 @@ public:
 
     void init()
     {
+        SPI.begin(SCK, MISO, MOSI, CSPIN);
+        _sd.setChipSelectPin(CSPIN);
+        delay(1);
+
+        // Reset the driver to its default settings and clear latched status
+        // conditions.
+        _sd.resetSettings();
+        _sd.clearStatus();
+        // Select auto mixed decay.  TI's DRV8711 documentation recommends this mode
+        // for most applications, and we find that it usually works well.
+        _sd.setDecayMode(HPSDDecayMode::AutoMixed);
+        // Set the current limit. You should change the number here to an appropriate
+        // value for your particular system.
+        _sd.setCurrentMilliamps36v4(CURRENTLIMIT);
+        // Set the number of microsteps that correspond to one full step.
+        _sd.setStepMode(HPSDStepMode::MicroStep4);
+        // Enable the motor outputs.
+        _sd.enableDriver();
+        _sd.setDirection(0);
+
         _mot_position = 0;
         _stepper.setMaxSpeed(INITSPEED);
         _stepper.setSpeed(INITSPEED);
@@ -41,8 +69,8 @@ public:
         pinMode(MS2PIN, OUTPUT);
         pinMode(MS3PIN, OUTPUT);
         pinMode(ENABLEPIN, OUTPUT);
-        pinMode(ENDSTOPDOWN, PULLDOWN);
-        pinMode(ENDSTOPUP, PULLDOWN);
+        pinMode(ENDSTOPDOWN, PULLUP);
+        pinMode(ENDSTOPUP, PULLUP);
         setMicrostep(MICROSTEP);
     }
 
@@ -171,6 +199,7 @@ public:
 private:
     // Motor
     AccelStepper _stepper = AccelStepper(MOTORINTERFACETYPE, STEPPIN, DIRPIN);
+    HighPowerStepperDriver _sd;
 
     int64_t _mot_position = 0;
     float _position = 0;
