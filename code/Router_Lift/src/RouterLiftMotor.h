@@ -20,6 +20,7 @@
 #define ENDSTOPDOWN 34
 
 #define MICROSTEP 4
+#define MICROSTEPTI HPSDStepMode::MicroStep4
 #define MOTORSTEPREV 200
 #define SPINDLEMMREV 3
 #define MOTPOSPOSFACTOR (MOTORSTEPREV * MICROSTEP / SPINDLEMMREV)
@@ -28,7 +29,7 @@
 #define MAXACCEL 45000   // in step/s^2
 #define MINPULSEWIDTH 20 // in uS
 
-#define CURRENTLIMIT 1000 // Current limit in mA
+#define CURRENTLIMIT 500 // Current limit in mA
 
 class RouterLiftMotor
 {
@@ -55,7 +56,7 @@ public:
         // value for your particular system.
         _sd.setCurrentMilliamps36v4(CURRENTLIMIT);
         // Set the number of microsteps that correspond to one full step.
-        _sd.setStepMode(HPSDStepMode::MicroStep4);
+        _sd.setStepMode(MICROSTEPTI);
         // Enable the motor outputs.
         _sd.enableDriver();
         _sd.setDirection(0);
@@ -114,11 +115,13 @@ public:
     void enable_motor()
     {
         digitalWrite(ENABLEPIN, LOW);
+        _sd.enableDriver();
     }
 
     void disable_motor()
     {
         digitalWrite(ENABLEPIN, HIGH);
+        _sd.disableDriver();
     }
 
     void setMicrostep(uint8_t microStep)
