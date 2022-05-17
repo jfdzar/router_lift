@@ -1,6 +1,9 @@
 # For PCBs designed using KiCad: http://www.kicad-pcb.org/
 # Format documentation: http://kicad-pcb.org/help/file-formats/
 
+#Personal
+/code/Router_Lift_test/*
+
 *.zip
 *.gbr
 *.step
@@ -31,3 +34,4 @@ fp-info-cache
 # Exported BOM files
 *.xml
 *.csv
+

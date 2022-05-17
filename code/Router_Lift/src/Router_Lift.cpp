@@ -48,7 +48,7 @@ void setup()
   button_a.attachLongPressStop(lockControls); // link the function to be called on a longpress event.
 
   button_enc.attachClick(moveStepper);
-  button_enc.attachDuringLongPress(saveZeroPosition);
+  button_enc.attachLongPressStop(saveZeroPosition);
 
   Serial.println("Starting Loop");
 }
@@ -62,15 +62,31 @@ void loop()
   if (!lockedControls)
   {
     button_enc.tick();
-    rldisplay.draw_position(rlmotor.get_position());
-    if (rotaryEncoder.encoderChanged())
+    if (mode == MODE_POSITION)
     {
-      rlmotor.update_position(float(rotaryEncoder.readEncoder()) / 100);
+      rldisplay.draw_position(rlmotor.get_position());
+      rldisplay.draw_position();
+      if (rotaryEncoder.encoderChanged())
+      {
+        rlmotor.update_position(float(rotaryEncoder.readEncoder()) / 100);
+      }
+    }
+    else if (mode == MODE_SPEED)
+    {
+      rldisplay.draw_position(rlmotor.get_speed());
+      rldisplay.draw_speed();
+      if (rotaryEncoder.encoderChanged())
+      {
+        rlmotor.set_speed(float(rotaryEncoder.readEncoder()));
+      }
+    }
+    else if (mode == MODE_USTEP)
+    {
+      rldisplay.draw_ustep();
     }
   }
-  if (lockedControls)
+  else if (lockedControls)
   {
-
     rldisplay.draw_locked();
   }
 
@@ -124,11 +140,30 @@ void serialEvent()
 
 void startRouter()
 {
+  Serial.println("Button A - Short Press");
   digitalWrite(LEDGREEN, !digitalRead(LEDGREEN));
+  mode = mode + 1;
+  if (mode > 1)
+  {
+    mode = 0;
+  }
+  if (mode == MODE_POSITION)
+  {
+    rotaryEncoder.setBoundaries(ENCLOWLIMIT, ENCUPPLIMIT, false); // minValue, maxValue, circleValues true|false (when max go to min and vice versa)
+    rotaryEncoder.setEncoderValue(rlmotor.get_position() * 100);
+  }
+  else if (mode == MODE_SPEED)
+  {
+    rotaryEncoder.setBoundaries(0, 5000, false); // minValue, maxValue, circleValues true|false (when max go to min and vice versa)
+    rotaryEncoder.setEncoderValue(rlmotor.get_speed());
+  }
+  Serial.print("Mode: ");
+  Serial.println(mode);
 }
 
 void lockControls()
 {
+  Serial.println("Button A - Long Press");
   digitalWrite(LEDRED, !digitalRead(LEDRED));
   lockedControls = !lockedControls;
 
@@ -144,6 +179,7 @@ void lockControls()
 
 void moveStepper()
 {
+  Serial.println("Button Encoder - Short Press");
   rlmotor.update_mot_position();
   rlmotor.enable_motor();
   rldisplay.draw_moving();
@@ -152,6 +188,7 @@ void moveStepper()
 
 void saveZeroPosition()
 {
+  Serial.println("Button Encoder - Long Press");
   rlmotor.save_zero_position();
   rotaryEncoder.setEncoderValue(0);
 }

@@ -7,6 +7,7 @@
 #define STEPPIN 16
 #define DIRPIN 17
 #define ENABLEPIN 26
+#define SLEEPPIN 27
 #define MS1PIN 25
 #define MS2PIN 33
 #define MS3PIN 32
@@ -18,9 +19,10 @@
 
 #define ENDSTOPUP 35
 #define ENDSTOPDOWN 34
+//#define ENDSTOPDOWN 39 test
 
-#define MICROSTEP 4
-#define MICROSTEPTI HPSDStepMode::MicroStep4
+#define MICROSTEP 2
+#define MICROSTEPTI HPSDStepMode::MicroStep2
 #define MOTORSTEPREV 200
 #define SPINDLEMMREV 3
 #define MOTPOSPOSFACTOR (MOTORSTEPREV * MICROSTEP / SPINDLEMMREV)
@@ -29,7 +31,7 @@
 #define MAXACCEL 45000   // in step/s^2
 #define MINPULSEWIDTH 20 // in uS
 
-#define CURRENTLIMIT 500 // Current limit in mA
+#define CURRENTLIMIT 2500 // Current limit in mA
 
 class RouterLiftMotor
 {
@@ -70,6 +72,8 @@ public:
         pinMode(MS2PIN, OUTPUT);
         pinMode(MS3PIN, OUTPUT);
         pinMode(ENABLEPIN, OUTPUT);
+        pinMode(SLEEPPIN, OUTPUT);
+        digitalWrite(SLEEPPIN, HIGH);
         pinMode(ENDSTOPDOWN, PULLUP);
         pinMode(ENDSTOPUP, PULLUP);
         setMicrostep(MICROSTEP);
@@ -134,6 +138,11 @@ public:
         return _position;
     }
 
+    long get_speed()
+    {
+        return _speed;
+    }
+
     float get_mot_position()
     {
         return _mot_position;
@@ -172,9 +181,17 @@ public:
 
     void run()
     {
-        //_stepper.run();
+        if (_mot_position == _stepper.currentPosition())
+        {
+            _sd.disableDriver();
+        }
+        else
+        {
+            _sd.enableDriver();
+        }
         _stepper.runToPosition();
-        check_end_stops();
+        //_stepper.run();
+        // check_end_stops();
     }
 
     bool is_moving()

@@ -74,17 +74,47 @@ public:
 
     void draw_position(float position)
     {
+
         _display.clearDisplay();
         _display.setTextSize(2);
         _display.setCursor(32, 32);
         _display.println(position);
     }
 
+    void draw_speed(long speed)
+    {
+        _display.clearDisplay();
+        _display.setTextSize(2);
+        _display.setCursor(10, 32);
+        _display.println(speed);
+    }
+
     void draw_locked()
     {
         _display.setTextSize(1);
-        _display.setCursor(60, 0);
+        _display.setCursor(80, 0);
         _display.println("Locked");
+    }
+
+    void draw_position()
+    {
+        _display.setTextSize(1);
+        _display.setCursor(10, 0);
+        _display.println("Pos");
+    }
+
+    void draw_speed()
+    {
+        _display.setTextSize(1);
+        _display.setCursor(10, 0);
+        _display.println("Speed");
+    }
+
+    void draw_ustep()
+    {
+        _display.setTextSize(1);
+        _display.setCursor(10, 0);
+        _display.println("uStep");
     }
 
     void draw_moving()
