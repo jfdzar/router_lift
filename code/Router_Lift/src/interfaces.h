@@ -10,6 +10,7 @@
 
 #define ENCLOWLIMIT -5000 // -10 * 100
 #define ENCUPPLIMIT 20000 // 200 * 100
+#define ENCSPEEDUPPLIMIT 8000
 
 // Buttons and LEDs
 #define BUTTONAPIN 39

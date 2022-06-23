@@ -50,6 +50,7 @@ void setup()
   button_enc.attachClick(moveStepper);
   button_enc.attachLongPressStop(saveZeroPosition);
 
+  rlmotor.set_current_limit(2500);
   Serial.println("Starting Loop");
 }
 
@@ -65,7 +66,7 @@ void loop()
     if (mode == MODE_POSITION)
     {
       rldisplay.draw_position(rlmotor.get_position());
-      rldisplay.draw_position();
+      rldisplay.draw_mode("Pos");
       if (rotaryEncoder.encoderChanged())
       {
         rlmotor.update_position(float(rotaryEncoder.readEncoder()) / 100);
@@ -74,15 +75,20 @@ void loop()
     else if (mode == MODE_SPEED)
     {
       rldisplay.draw_position(rlmotor.get_speed());
-      rldisplay.draw_speed();
+      rldisplay.draw_mode("Speed");
       if (rotaryEncoder.encoderChanged())
       {
         rlmotor.set_speed(float(rotaryEncoder.readEncoder()));
       }
     }
+    else if (mode == MODE_CURRENT)
+    {
+      rldisplay.draw_position(rlmotor.get_current());
+      rldisplay.draw_mode("mA");
+    }
     else if (mode == MODE_USTEP)
     {
-      rldisplay.draw_ustep();
+      rldisplay.draw_mode("uStep");
     }
   }
   else if (lockedControls)
@@ -118,11 +124,11 @@ void serialEvent()
 
       if (!lockedControls)
       {
-        long speed = 0;
-        speed = inputString.toInt();
-        Serial.print("Speed: ");
+        uint16_t max_current = 0;
+        max_current = inputString.toInt();
+        Serial.print("Current Limit: ");
         Serial.println(inputString);
-        rlmotor.set_speed(speed);
+        rlmotor.set_current_limit(max_current);
       }
       else
       {
@@ -154,7 +160,7 @@ void startRouter()
   }
   else if (mode == MODE_SPEED)
   {
-    rotaryEncoder.setBoundaries(0, 5000, false); // minValue, maxValue, circleValues true|false (when max go to min and vice versa)
+    rotaryEncoder.setBoundaries(0, ENCSPEEDUPPLIMIT, false); // minValue, maxValue, circleValues true|false (when max go to min and vice versa)
     rotaryEncoder.setEncoderValue(rlmotor.get_speed());
   }
   Serial.print("Mode: ");
