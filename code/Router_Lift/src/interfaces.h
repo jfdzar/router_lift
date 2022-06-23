@@ -9,7 +9,7 @@
 #define ENCINITPOS 0
 
 #define ENCLOWLIMIT -5000 // -10 * 100
-#define ENCUPPLIMIT 10000 // 100 * 100
+#define ENCUPPLIMIT 20000 // 200 * 100
 
 // Buttons and LEDs
 #define BUTTONAPIN 39
@@ -20,7 +20,8 @@
 
 #define MODE_POSITION 0
 #define MODE_SPEED 1
-#define MODE_USTEP 2
+#define MODE_CURRENT 2
+#define MODE_USTEP 3
 
 void serialEvent();
 void IRAM_ATTR readEncoderISR();
