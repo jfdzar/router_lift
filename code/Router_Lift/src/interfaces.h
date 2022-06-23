@@ -19,6 +19,10 @@
 #define LEDGREEN 27
 #define LEDRED 14
 
+// End Stops
+#define ENDSTOPUP 35
+#define ENDSTOPDOWN 34
+
 #define MODE_POSITION 0
 #define MODE_SPEED 1
 #define MODE_CURRENT 2

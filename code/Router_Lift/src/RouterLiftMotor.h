@@ -17,10 +17,6 @@
 #define CSPIN 5
 #define MOTORINTERFACETYPE 1
 
-#define ENDSTOPUP 35
-#define ENDSTOPDOWN 34
-//#define ENDSTOPDOWN 39 test
-
 #define MICROSTEP 4
 #define MICROSTEPTI HPSDStepMode::MicroStep4
 #define MOTORSTEPREV 200
@@ -74,46 +70,7 @@ public:
         pinMode(ENABLEPIN, OUTPUT);
         pinMode(SLEEPPIN, OUTPUT);
         digitalWrite(SLEEPPIN, HIGH);
-        pinMode(ENDSTOPDOWN, PULLUP);
-        pinMode(ENDSTOPUP, PULLUP);
         setMicrostep(MICROSTEP);
-    }
-
-    void check_end_stops()
-    {
-        _endstopdown = digitalRead(ENDSTOPDOWN);
-        _endstopup = digitalRead(ENDSTOPUP);
-
-        if (_endstopdown)
-        {
-            if (_mot_position > _stepper.currentPosition())
-            {
-                _mot_position = _stepper.currentPosition();
-                _stepper.moveTo(_mot_position);
-                _position = _mot_position / MOTPOSPOSFACTOR;
-                _endstopevent = true;
-            }
-        }
-        if (_endstopup)
-        {
-            if (_mot_position < _stepper.currentPosition())
-            {
-                _mot_position = _stepper.currentPosition();
-                _stepper.moveTo(_mot_position);
-                _position = _mot_position / MOTPOSPOSFACTOR;
-                _endstopevent = true;
-            }
-        }
-    }
-
-    bool get_endstopevent()
-    {
-        return _endstopevent;
-    }
-
-    void reset_endstopevent()
-    {
-        _endstopevent = false;
     }
 
     void enable_motor()
@@ -209,9 +166,6 @@ public:
             _sd.clearFaults();
             Serial.println(faults, HEX);
         }
-
-        //_stepper.run();
-        // check_end_stops();
     }
 
     bool is_moving()
@@ -226,16 +180,6 @@ public:
         }
     }
 
-    bool get_endstopdown()
-    {
-        return _endstopdown;
-    }
-
-    bool get_endstopup()
-    {
-        return _endstopup;
-    }
-
 private:
     // Motor
     AccelStepper _stepper = AccelStepper(MOTORINTERFACETYPE, STEPPIN, DIRPIN);
@@ -246,10 +190,6 @@ private:
     long _speed = INITSPEED;
     long _acceleration = MAXACCEL;
     uint16_t _max_current = CURRENTLIMIT;
-
-    bool _endstopdown = false;
-    bool _endstopup = false;
-    bool _endstopevent = false;
 
     void _setMicrostep(uint8_t microStep, uint8_t ms1Pin, uint8_t ms2Pin, uint8_t ms3Pin)
     {

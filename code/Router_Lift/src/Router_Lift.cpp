@@ -44,6 +44,9 @@ void setup()
   pinMode(LEDGREEN, OUTPUT);
   pinMode(LEDRED, OUTPUT);
 
+  pinMode(ENDSTOPDOWN, PULLUP);
+  pinMode(ENDSTOPUP, PULLUP);
+
   button_a.attachClick(startRouter);          // link the function to be called on a singleclick event.
   button_a.attachLongPressStop(lockControls); // link the function to be called on a longpress event.
 
