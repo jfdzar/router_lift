@@ -21,15 +21,15 @@
 #define ENDSTOPDOWN 34
 //#define ENDSTOPDOWN 39 test
 
-#define MICROSTEP 2
-#define MICROSTEPTI HPSDStepMode::MicroStep2
+#define MICROSTEP 4
+#define MICROSTEPTI HPSDStepMode::MicroStep4
 #define MOTORSTEPREV 200
 #define SPINDLEMMREV 3
 #define MOTPOSPOSFACTOR (MOTORSTEPREV * MICROSTEP / SPINDLEMMREV)
 
-#define INITSPEED 2000   // in step/s
-#define MAXACCEL 45000   // in step/s^2
-#define MINPULSEWIDTH 20 // in uS
+#define INITSPEED 5000  // in step/s
+#define MAXACCEL 45000  // in step/s^2
+#define MINPULSEWIDTH 2 // in uS
 
 #define CURRENTLIMIT 2500 // Current limit in mA
 
@@ -143,6 +143,11 @@ public:
         return _speed;
     }
 
+    uint16_t get_current()
+    {
+        return _max_current;
+    }
+
     float get_mot_position()
     {
         return _mot_position;
@@ -173,6 +178,12 @@ public:
         _stepper.setMaxSpeed(_speed);
     }
 
+    void set_current_limit(uint16_t max_current)
+    {
+        _max_current = max_current;
+        _sd.setCurrentMilliamps36v4(max_current);
+    }
+
     void set_acceleration(long acceleration)
     {
         _acceleration = acceleration;
@@ -187,9 +198,18 @@ public:
         }
         else
         {
+            unsigned long moveTime = millis();
             _sd.enableDriver();
+            _stepper.runToPosition();
+            Serial.print("Move Time: ");
+            moveTime = millis() - moveTime;
+            Serial.println(moveTime);
+            Serial.print("Faults: ");
+            uint8_t faults = _sd.readFaults();
+            _sd.clearFaults();
+            Serial.println(faults, HEX);
         }
-        _stepper.runToPosition();
+
         //_stepper.run();
         // check_end_stops();
     }
@@ -225,6 +245,7 @@ private:
     float _position = 0;
     long _speed = INITSPEED;
     long _acceleration = MAXACCEL;
+    uint16_t _max_current = CURRENTLIMIT;
 
     bool _endstopdown = false;
     bool _endstopup = false;
