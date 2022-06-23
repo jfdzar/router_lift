@@ -1,26 +1,37 @@
 #include <AccelStepper.h>
 #include <OneButton.h>
+#include <SPI.h>
+#include <HighPowerStepperDriver.h>
 
 // Stepper
-#define STEPPIN 12
-#define DIRPIN 13
-#define ENABLEPIN 2 // Same as built in LEDPIN
-#define MS1PIN 33
-#define MS2PIN 25
-#define MS3PIN 26
+#define STEPPIN 16
+#define DIRPIN 17
+#define ENABLEPIN 26
+#define SLEEPPIN 27
+#define MS1PIN 25
+#define MS2PIN 33
+#define MS3PIN 32
+#define SCK 18
+#define MISO 19
+#define MOSI 23
+#define CSPIN 5
 #define MOTORINTERFACETYPE 1
 
-#define ENDSTOPUP 18
-#define ENDSTOPDOWN 19
+#define ENDSTOPUP 35
+#define ENDSTOPDOWN 34
+//#define ENDSTOPDOWN 39 test
 
 #define MICROSTEP 4
+#define MICROSTEPTI HPSDStepMode::MicroStep4
 #define MOTORSTEPREV 200
 #define SPINDLEMMREV 3
 #define MOTPOSPOSFACTOR (MOTORSTEPREV * MICROSTEP / SPINDLEMMREV)
 
-#define INITSPEED 2000   // in step/s
-#define MAXACCEL 45000   // in step/s^2
-#define MINPULSEWIDTH 20 // in uS
+#define INITSPEED 5000  // in step/s
+#define MAXACCEL 45000  // in step/s^2
+#define MINPULSEWIDTH 2 // in uS
+
+#define CURRENTLIMIT 2500 // Current limit in mA
 
 class RouterLiftMotor
 {
@@ -32,6 +43,26 @@ public:
 
     void init()
     {
+        SPI.begin(SCK, MISO, MOSI, CSPIN);
+        _sd.setChipSelectPin(CSPIN);
+        delay(1);
+
+        // Reset the driver to its default settings and clear latched status
+        // conditions.
+        _sd.resetSettings();
+        _sd.clearStatus();
+        // Select auto mixed decay.  TI's DRV8711 documentation recommends this mode
+        // for most applications, and we find that it usually works well.
+        _sd.setDecayMode(HPSDDecayMode::AutoMixed);
+        // Set the current limit. You should change the number here to an appropriate
+        // value for your particular system.
+        _sd.setCurrentMilliamps36v4(CURRENTLIMIT);
+        // Set the number of microsteps that correspond to one full step.
+        _sd.setStepMode(MICROSTEPTI);
+        // Enable the motor outputs.
+        _sd.enableDriver();
+        _sd.setDirection(0);
+
         _mot_position = 0;
         _stepper.setMaxSpeed(INITSPEED);
         _stepper.setSpeed(INITSPEED);
@@ -41,8 +72,10 @@ public:
         pinMode(MS2PIN, OUTPUT);
         pinMode(MS3PIN, OUTPUT);
         pinMode(ENABLEPIN, OUTPUT);
-        pinMode(ENDSTOPDOWN, PULLDOWN);
-        pinMode(ENDSTOPUP, PULLDOWN);
+        pinMode(SLEEPPIN, OUTPUT);
+        digitalWrite(SLEEPPIN, HIGH);
+        pinMode(ENDSTOPDOWN, PULLUP);
+        pinMode(ENDSTOPUP, PULLUP);
         setMicrostep(MICROSTEP);
     }
 
@@ -86,11 +119,13 @@ public:
     void enable_motor()
     {
         digitalWrite(ENABLEPIN, LOW);
+        _sd.enableDriver();
     }
 
     void disable_motor()
     {
         digitalWrite(ENABLEPIN, HIGH);
+        _sd.disableDriver();
     }
 
     void setMicrostep(uint8_t microStep)
@@ -101,6 +136,16 @@ public:
     float get_position()
     {
         return _position;
+    }
+
+    long get_speed()
+    {
+        return _speed;
+    }
+
+    uint16_t get_current()
+    {
+        return _max_current;
     }
 
     float get_mot_position()
@@ -133,6 +178,12 @@ public:
         _stepper.setMaxSpeed(_speed);
     }
 
+    void set_current_limit(uint16_t max_current)
+    {
+        _max_current = max_current;
+        _sd.setCurrentMilliamps36v4(max_current);
+    }
+
     void set_acceleration(long acceleration)
     {
         _acceleration = acceleration;
@@ -141,9 +192,26 @@ public:
 
     void run()
     {
+        if (_mot_position == _stepper.currentPosition())
+        {
+            _sd.disableDriver();
+        }
+        else
+        {
+            unsigned long moveTime = millis();
+            _sd.enableDriver();
+            _stepper.runToPosition();
+            Serial.print("Move Time: ");
+            moveTime = millis() - moveTime;
+            Serial.println(moveTime);
+            Serial.print("Faults: ");
+            uint8_t faults = _sd.readFaults();
+            _sd.clearFaults();
+            Serial.println(faults, HEX);
+        }
+
         //_stepper.run();
-        _stepper.runToPosition();
-        check_end_stops();
+        // check_end_stops();
     }
 
     bool is_moving()
@@ -171,11 +239,13 @@ public:
 private:
     // Motor
     AccelStepper _stepper = AccelStepper(MOTORINTERFACETYPE, STEPPIN, DIRPIN);
+    HighPowerStepperDriver _sd;
 
     int64_t _mot_position = 0;
     float _position = 0;
     long _speed = INITSPEED;
     long _acceleration = MAXACCEL;
+    uint16_t _max_current = CURRENTLIMIT;
 
     bool _endstopdown = false;
     bool _endstopup = false;

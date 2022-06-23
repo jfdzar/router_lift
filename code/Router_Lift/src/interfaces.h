@@ -3,18 +3,26 @@
 
 // Encoder
 #define ROTARY_ENCODER_STEPS 1
-#define ENCAPIN 32
-#define ENCBPIN 35
-#define ENCBUTTON 34
+#define ENCAPIN 15
+#define ENCBPIN 2 // Same as built in LEDPIN
+#define ENCBUTTON 4
 #define ENCINITPOS 0
 
 #define ENCLOWLIMIT -5000 // -10 * 100
-#define ENCUPPLIMIT 10000 // 100 * 100
+#define ENCUPPLIMIT 20000 // 200 * 100
+#define ENCSPEEDUPPLIMIT 8000
 
 // Buttons and LEDs
-#define BUTTONAPIN 27
-#define LEDGREEN 4
-#define LEDRED 23
+#define BUTTONAPIN 39
+//#define BUTTONAPIN 34 test
+#define BUTTONBPIN 36
+#define LEDGREEN 27
+#define LEDRED 14
+
+#define MODE_POSITION 0
+#define MODE_SPEED 1
+#define MODE_CURRENT 2
+#define MODE_USTEP 3
 
 void serialEvent();
 void IRAM_ATTR readEncoderISR();
@@ -29,6 +37,9 @@ AiEsp32RotaryEncoder rotaryEncoder = AiEsp32RotaryEncoder(ENCAPIN, ENCBPIN, ENCB
 
 // Inputs & Outputs
 OneButton button_a(BUTTONAPIN, true, true);
-OneButton button_enc(ENCBUTTON, false, false);
+OneButton button_b(BUTTONBPIN, true, true);
+OneButton button_enc(ENCBUTTON, true, true);
 
 bool lockedControls = false;
+
+uint8_t mode = 0;
