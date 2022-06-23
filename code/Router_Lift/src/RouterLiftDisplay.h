@@ -96,25 +96,11 @@ public:
         _display.println("Locked");
     }
 
-    void draw_position()
+    void draw_mode(String mode)
     {
         _display.setTextSize(1);
         _display.setCursor(10, 0);
-        _display.println("Pos");
-    }
-
-    void draw_speed()
-    {
-        _display.setTextSize(1);
-        _display.setCursor(10, 0);
-        _display.println("Speed");
-    }
-
-    void draw_ustep()
-    {
-        _display.setTextSize(1);
-        _display.setCursor(10, 0);
-        _display.println("uStep");
+        _display.println(mode);
     }
 
     void draw_moving()
