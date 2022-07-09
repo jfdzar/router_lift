@@ -16,8 +16,8 @@
 #define BUTTONAPIN 39
 //#define BUTTONAPIN 34 test
 #define BUTTONBPIN 36
-#define LEDGREEN 27
-#define LEDRED 14
+#define LEDGREEN 13
+#define LEDRED 12
 
 // End Stops
 #define ENDSTOPUP 35
@@ -30,6 +30,7 @@
 
 void serialEvent();
 void IRAM_ATTR readEncoderISR();
+void IRAM_ATTR toggleLED();
 
 void startRouter();
 void lockControls();

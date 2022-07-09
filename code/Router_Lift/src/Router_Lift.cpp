@@ -43,9 +43,12 @@ void setup()
   // Inputs & Outputs
   pinMode(LEDGREEN, OUTPUT);
   pinMode(LEDRED, OUTPUT);
+  digitalWrite(LEDRED, HIGH);
 
-  pinMode(ENDSTOPDOWN, PULLUP);
-  pinMode(ENDSTOPUP, PULLUP);
+  pinMode(ENDSTOPUP, INPUT);
+  attachInterrupt(ENDSTOPUP, toggleLED, FALLING);
+  pinMode(ENDSTOPDOWN, INPUT);
+  attachInterrupt(ENDSTOPDOWN, toggleLED, FALLING);
 
   button_a.attachClick(startRouter);          // link the function to be called on a singleclick event.
   button_a.attachLongPressStop(lockControls); // link the function to be called on a longpress event.
@@ -103,12 +106,6 @@ void loop()
   {
     rlmotor.disable_motor();
     rldisplay.redraw();
-
-    if (rlmotor.get_endstopevent())
-    {
-      rotaryEncoder.setEncoderValue(rlmotor.get_position() * 100);
-      rlmotor.reset_endstopevent();
-    }
   }
 }
 
@@ -205,4 +202,9 @@ void saveZeroPosition()
 void IRAM_ATTR readEncoderISR()
 {
   rotaryEncoder.readEncoder_ISR();
+}
+
+void IRAM_ATTR toggleLED()
+{
+  digitalWrite(LEDGREEN, !digitalRead(LEDGREEN));
 }
