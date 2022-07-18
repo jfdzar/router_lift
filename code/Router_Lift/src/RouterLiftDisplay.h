@@ -103,6 +103,13 @@ public:
         _display.println(mode);
     }
 
+    void draw_endswitch(String endswitch)
+    {
+        _display.setTextSize(1);
+        _display.setCursor(30, 0);
+        _display.println(endswitch);
+    }
+
     void draw_moving()
     {
         _display.setTextSize(1);

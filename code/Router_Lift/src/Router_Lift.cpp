@@ -26,12 +26,15 @@ void setup()
   Serial.begin(BAUDRATE);
   inputString.reserve(200);
 
+
+
   // Motor
   rlmotor.init();
 
   // Display
   rldisplay.init();
   rldisplay.poweron_screen();
+
 
   // Encoder
   rotaryEncoder.begin();
@@ -40,15 +43,11 @@ void setup()
   rotaryEncoder.setAcceleration(500);
   rotaryEncoder.setEncoderValue(ENCINITPOS); // set default to 0
 
+
   // Inputs & Outputs
   pinMode(LEDGREEN, OUTPUT);
   pinMode(LEDRED, OUTPUT);
   digitalWrite(LEDRED, HIGH);
-
-  pinMode(ENDSTOPUP, INPUT);
-  attachInterrupt(ENDSTOPUP, toggleLED, FALLING);
-  pinMode(ENDSTOPDOWN, INPUT);
-  attachInterrupt(ENDSTOPDOWN, toggleLED, FALLING);
 
   button_a.attachClick(startRouter);          // link the function to be called on a singleclick event.
   button_a.attachLongPressStop(lockControls); // link the function to be called on a longpress event.
@@ -57,6 +56,7 @@ void setup()
   button_enc.attachLongPressStop(saveZeroPosition);
 
   rlmotor.set_current_limit(2500);
+
   Serial.println("Starting Loop");
 }
 
@@ -64,6 +64,7 @@ void loop()
 {
   serialEvent();
   rlmotor.run();
+  rlmotor.evaluate_switches();
 
   button_a.tick();
   if (!lockedControls)
@@ -73,9 +74,15 @@ void loop()
     {
       rldisplay.draw_position(rlmotor.get_position());
       rldisplay.draw_mode("Pos");
+      if (rlmotor.get_end_switch_down()) {rldisplay.draw_endswitch("D");}
+      if (rlmotor.get_end_switch_up()) {rldisplay.draw_endswitch("U");}
       if (rotaryEncoder.encoderChanged())
       {
         rlmotor.update_position(float(rotaryEncoder.readEncoder()) / 100);
+      }
+      else
+      {
+        rotaryEncoder.setEncoderValue(rlmotor.get_position() * 100);
       }
     }
     else if (mode == MODE_SPEED)

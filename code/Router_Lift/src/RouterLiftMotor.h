@@ -17,6 +17,10 @@
 #define CSPIN 5
 #define MOTORINTERFACETYPE 1
 
+// End Stops
+#define ENDSTOPUP 35
+#define ENDSTOPDOWN 34
+
 #define MICROSTEP 4
 #define MICROSTEPTI HPSDStepMode::MicroStep4
 #define MOTORSTEPREV 200
@@ -71,6 +75,9 @@ public:
         pinMode(SLEEPPIN, OUTPUT);
         digitalWrite(SLEEPPIN, HIGH);
         setMicrostep(MICROSTEP);
+
+        pinMode(ENDSTOPUP, INPUT);
+        pinMode(ENDSTOPDOWN, INPUT);
     }
 
     void enable_motor()
@@ -100,6 +107,16 @@ public:
         return _speed;
     }
 
+    bool get_end_switch_down()
+    {
+        return _end_switch_down;
+    }
+
+    bool get_end_switch_up()
+    {
+        return _end_switch_up;
+    }
+
     uint16_t get_current()
     {
         return _max_current;
@@ -117,7 +134,7 @@ public:
 
     void update_mot_position()
     {
-        _mot_position = round(_position * MOTPOSPOSFACTOR);
+        _mot_position = round(float(_position) * float(MOTPOSPOSFACTOR));
         _stepper.moveTo(_mot_position);
     }
 
@@ -151,13 +168,37 @@ public:
     {
         if (_mot_position == _stepper.currentPosition())
         {
-            _sd.disableDriver();
+            disable_motor();
         }
         else
         {
             unsigned long moveTime = millis();
-            _sd.enableDriver();
-            _stepper.runToPosition();
+            bool motor_moving = true;
+
+            bool moving_up = (_mot_position > _stepper.currentPosition());
+
+            enable_motor();
+            //_stepper.runToPosition();
+            while(motor_moving)
+            {
+                // Run Motor
+                motor_moving = _stepper.run();
+                // Check End Switches
+                _end_switch_down = !digitalRead(ENDSTOPDOWN);
+                _end_switch_up = !digitalRead(ENDSTOPUP);
+
+                if (_end_switch_down & !moving_up)
+                {
+                    end_switch_stop();
+                    break;
+                }
+                if (_end_switch_up & moving_up)
+                {
+                    end_switch_stop();
+                    break;
+                }
+            }
+
             Serial.print("Move Time: ");
             moveTime = millis() - moveTime;
             Serial.println(moveTime);
@@ -166,6 +207,21 @@ public:
             _sd.clearFaults();
             Serial.println(faults, HEX);
         }
+    }
+
+    void evaluate_switches()
+    {
+        _end_switch_down = !digitalRead(ENDSTOPDOWN);
+        _end_switch_up = !digitalRead(ENDSTOPUP);
+    }
+
+    void end_switch_stop()
+    {
+        _stepper.moveTo(_stepper.currentPosition());
+        _mot_position = _stepper.currentPosition();
+        _position = float(_mot_position) / float(MOTPOSPOSFACTOR);
+        Serial.println(_mot_position);
+        Serial.println(_position);
     }
 
     bool is_moving()
@@ -190,6 +246,9 @@ private:
     long _speed = INITSPEED;
     long _acceleration = MAXACCEL;
     uint16_t _max_current = CURRENTLIMIT;
+
+    bool _end_switch_up = true;
+    bool _end_switch_down = true;
 
     void _setMicrostep(uint8_t microStep, uint8_t ms1Pin, uint8_t ms2Pin, uint8_t ms3Pin)
     {

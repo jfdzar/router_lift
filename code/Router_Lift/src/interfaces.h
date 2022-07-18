@@ -19,10 +19,6 @@
 #define LEDGREEN 13
 #define LEDRED 12
 
-// End Stops
-#define ENDSTOPUP 35
-#define ENDSTOPDOWN 34
-
 #define MODE_POSITION 0
 #define MODE_SPEED 1
 #define MODE_CURRENT 2
@@ -30,7 +26,6 @@
 
 void serialEvent();
 void IRAM_ATTR readEncoderISR();
-void IRAM_ATTR toggleLED();
 
 void startRouter();
 void lockControls();
